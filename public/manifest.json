@@ -4,6 +4,7 @@
   "short_name": "Koperasi",
   "description": "Sistem Informasi Simpan Pinjam & Tabungan Kampung Kradenan",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#065f46",
   "theme_color": "#065f46",
@@ -13,13 +14,25 @@
       "src": "/icons/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
