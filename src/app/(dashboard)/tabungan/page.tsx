@@ -27,6 +27,7 @@ export default function TabunganPage() {
   const [masterAnggota, setMasterAnggota] = useState<Anggota[]>([])
   const [daftarPertemuan, setDaftarPertemuan] = useState<PertemuanItem[]>([])
   const [selectedPertemuanId, setSelectedPertemuanId] = useState<string>('')
+  const [userId, setUserId] = useState<string>('')
   const [userRt, setUserRt] = useState<string>('')
   const [userRole, setUserRole] = useState<string>('loading')
   const [loadingData, setLoadingData] = useState<boolean>(true)
@@ -50,7 +51,7 @@ export default function TabunganPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  // Helper Format Angka Ribuan (misal 500000 -> 500.000)
+  // Helper Format Angka Ribuan
   const formatRupiahDisplay = (val: string | number) => {
     if (!val && val !== 0) return ''
     const numberString = val.toString().replace(/[^0-9]/g, '')
@@ -58,13 +59,13 @@ export default function TabunganPage() {
     return parseInt(numberString, 10).toLocaleString('id-ID')
   }
 
-  // Helper Unformat Angka (misal "500.000" -> 500000)
+  // Helper Unformat Angka
   const parseRawNumber = (val: string) => {
     const raw = val.replace(/[^0-9]/g, '')
     return parseFloat(raw) || 0
   }
 
-  // 1. Inisialisasi User RT, Role, Master Anggota & Daftar Pertemuan dari Supabase
+  // 1. Inisialisasi User & Data Spesifik User Ini dari Supabase
   useEffect(() => {
     async function initData() {
       setLoadingData(true)
@@ -72,8 +73,15 @@ export default function TabunganPage() {
         data: { user },
       } = await supabase.auth.getUser()
 
-      const rt = user?.user_metadata?.rt_group || 'RT 09'
-      const role = user?.user_metadata?.role || 'simpan_pinjam'
+      if (!user) {
+        setLoadingData(false)
+        return
+      }
+
+      const uid = user.id
+      const rt = user.user_metadata?.rt_group || 'RT 09'
+      const role = user.user_metadata?.role || 'simpan_pinjam'
+      setUserId(uid)
       setUserRt(rt)
       setUserRole(role)
 
@@ -82,22 +90,22 @@ export default function TabunganPage() {
         return
       }
 
-      // Fetch Master Anggota
+      // Fetch Master Anggota milik akun ini / RT ini
       const { data: dataAnggota } = await supabase
         .from('anggota')
         .select('id, nama')
-        .eq('rt_group', rt)
+        .or(`user_id.eq.${uid},rt_group.eq.${rt}`)
         .order('id', { ascending: true })
 
       if (dataAnggota) {
         setMasterAnggota(dataAnggota)
       }
 
-      // Fetch Pertemuan
+      // Fetch Pertemuan milik akun ini / RT ini
       const { data: dataPertemuan } = await supabase
         .from('pertemuan')
         .select('id, tanggal')
-        .eq('rt_group', rt)
+        .or(`user_id.eq.${uid},rt_group.eq.${rt}`)
         .order('created_at', { ascending: false })
 
       if (dataPertemuan && dataPertemuan.length > 0) {
@@ -110,7 +118,7 @@ export default function TabunganPage() {
     initData()
   }, [])
 
-  // 2. Load Transaksi Pertemuan Terpilih dari Supabase
+  // 2. Load Transaksi Pertemuan Terpilih
   useEffect(() => {
     async function loadTransaksiPertemuan() {
       if (!selectedPertemuanId || selectedPertemuanId === 'ALL') {
@@ -193,7 +201,6 @@ export default function TabunganPage() {
       a.id.toString().includes(searchAnggota)
   )
 
-  // 1. Trigger Modal Edit Langsung dari Baris Tabel
   const handleOpenEditBaris = (anggota: Anggota) => {
     setSelectedAnggota(anggota)
     setSearchAnggota(`${anggota.id}. ${anggota.nama}`)
@@ -208,7 +215,6 @@ export default function TabunganPage() {
     setIsModalOpen(true)
   }
 
-  // 2. Submit Form Pertama (Memicu Pop-Up Konfirmasi)
   const handleSubmitFormModal = (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedAnggota) {
@@ -226,7 +232,7 @@ export default function TabunganPage() {
     setIsConfirmOpen(true)
   }
 
-  // 3. Eksekusi Simpan Perubahan Setelah Dikonfirmasi User ke Supabase
+  // Eksekusi Simpan dengan menyertakan user_id
   const handleExecuteSave = async () => {
     if (!selectedAnggota || !selectedPertemuanId) return
 
@@ -253,6 +259,7 @@ export default function TabunganPage() {
         .from('transaksi')
         .insert([
           {
+            user_id: userId,
             rt_group: userRt,
             id_pertemuan: selectedPertemuanId,
             id_anggota: selectedAnggota.id,
@@ -285,7 +292,7 @@ export default function TabunganPage() {
     setInputTabunganDisplay('')
   }
 
-  // 4. Ekspor ke Excel (.xlsx) dengan Format Rupiah Rapi
+  // Ekspor ke Excel (.xlsx)
   const handleExportExcel = async () => {
     try {
       const XLSX = await import('xlsx')
@@ -304,7 +311,6 @@ export default function TabunganPage() {
         }
       })
 
-      // Baris Total Akumulasi
       const totalSemua = anggotaTampil.reduce((acc, curr) => acc + getSetoranPertemuanIni(curr.id), 0)
 
       dataToExport.push({
@@ -324,7 +330,7 @@ export default function TabunganPage() {
       XLSX.writeFile(workbook, cleanFileName)
     } catch (err) {
       console.error('Export Excel Error:', err)
-      alert('Gagal mengekspor file Excel. Pastikan package xlsx sudah terinstall (npm i xlsx).')
+      alert('Gagal mengekspor file Excel.')
     }
   }
 
@@ -359,7 +365,6 @@ export default function TabunganPage() {
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            {/* Tombol Export Excel */}
             <button
               onClick={handleExportExcel}
               className="flex-1 sm:flex-none px-3.5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5"
@@ -410,7 +415,7 @@ export default function TabunganPage() {
         </div>
       </div>
 
-      {/* 1. TAMPILAN MOBILE (HANYA MUNCUL DI HP / LAYAR KECIL) */}
+      {/* TAMPILAN MOBILE */}
       <div className="block md:hidden space-y-3">
         {loadingData ? (
           <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-xs text-slate-400 font-medium">
@@ -459,7 +464,7 @@ export default function TabunganPage() {
         )}
       </div>
 
-      {/* 2. TAMPILAN DESKTOP (TABEL LEBAR UNTUK LAPTOP / PC) */}
+      {/* TAMPILAN DESKTOP */}
       <div className="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-600">
@@ -521,7 +526,6 @@ export default function TabunganPage() {
               )}
             </tbody>
 
-            {/* Footer Total */}
             <tfoot className="bg-slate-100 font-bold text-slate-800 border-t-2 border-slate-200 text-xs">
               <tr>
                 <td colSpan={3} className="py-3 px-4 text-right uppercase font-extrabold tracking-wider">
@@ -554,7 +558,6 @@ export default function TabunganPage() {
             </div>
 
             <form onSubmit={handleSubmitFormModal} className="space-y-3 sm:space-y-4">
-              {/* Cari / Pilih Anggota */}
               <div className="relative">
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   Cari Nama / No. Anggota
@@ -607,7 +610,6 @@ export default function TabunganPage() {
                 )}
               </div>
 
-              {/* Input Nominal Tabungan (Formatted Thousand Separator) */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   Nominal Tabungan (Rp)
@@ -645,7 +647,7 @@ export default function TabunganPage() {
         </div>
       )}
 
-      {/* MODAL 2: POP-UP KONFIRMASI (SAFETY GUARD HUMAN ERROR) */}
+      {/* MODAL 2: POP-UP KONFIRMASI */}
       {isConfirmOpen && selectedAnggota && (
         <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm p-5 sm:p-6 text-center space-y-4">

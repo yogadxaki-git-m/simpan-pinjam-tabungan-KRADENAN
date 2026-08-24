@@ -5,11 +5,12 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const menuItems = [
-  { name: 'Dashboard', href: '/' },
-  { name: 'Anggota', href: '/anggota' },
-  { name: 'Pertemuan', href: '/pertemuan' },
-  { name: 'Tabungan', href: '/tabungan' },
-  { name: 'Simpan Pinjam', href: '/simpan-pinjam' },
+  { name: 'Dashboard', href: '/', icon: '📊' },
+  { name: 'Anggota', href: '/anggota', icon: '👥' },
+  { name: 'Pertemuan', href: '/pertemuan', icon: '📅' },
+  { name: 'Tabungan Ibu-Ibu', href: '/tabungan', icon: '💰' },
+  { name: 'Simpan Pinjam', href: '/simpan-pinjam', icon: '🤝' },
+  { name: 'Kas & Tabungan Pemuda', href: '/kas-pemuda', icon: '⚽' },
 ]
 
 export default function Sidebar() {
@@ -20,10 +21,13 @@ export default function Sidebar() {
     <>
       {/* Tombol Header Mobile */}
       <div className="md:hidden bg-indigo-900 text-white p-4 flex justify-between items-center sticky top-0 z-50 shadow-md">
-        <h1 className="font-bold text-lg">Koperasi Digital</h1>
+        <div className="flex items-center gap-2">
+          <span className="text-xl">🏛️</span>
+          <h1 className="font-bold text-base tracking-tight">Koperasi Digital</h1>
+        </div>
         <button 
           onClick={() => setIsOpen(!isOpen)}
-          className="p-2 rounded-md bg-indigo-800 text-xs font-semibold hover:bg-indigo-700 transition"
+          className="px-3 py-1.5 rounded-lg bg-indigo-800 text-xs font-semibold hover:bg-indigo-700 transition"
         >
           {isOpen ? '✕ Tutup' : '☰ Menu'}
         </button>
@@ -46,11 +50,14 @@ export default function Sidebar() {
       `}>
         <div>
           <div className="mb-8 px-2 hidden md:block">
-            <h1 className="text-xl font-bold tracking-wide">Koperasi Digital</h1>
-            <p className="text-xs text-indigo-300 mt-1">Sistem Informasi KKN</p>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">🏛️</span>
+              <h1 className="text-xl font-black tracking-wide">Koperasi Digital</h1>
+            </div>
+            <p className="text-xs text-indigo-300 mt-1">Sistem Informasi Kradenan</p>
           </div>
 
-          <nav className="space-y-1">
+          <nav className="space-y-1.5">
             {menuItems.map((item) => {
               const isActive = pathname === item.href
               return (
@@ -58,21 +65,26 @@ export default function Sidebar() {
                   key={item.href}
                   href={item.href}
                   onClick={() => setIsOpen(false)}
-                  className={`block px-3 py-2.5 rounded-lg text-sm font-medium transition ${
+                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition ${
                     isActive 
                       ? 'bg-indigo-700 text-white shadow-sm' 
                       : 'text-indigo-200 hover:bg-indigo-800 hover:text-white'
                   }`}
                 >
-                  {item.name}
+                  <span className="text-sm">{item.icon}</span>
+                  <span>{item.name}</span>
                 </Link>
               )
             })}
           </nav>
         </div>
 
-        <div className="border-t border-indigo-800 pt-4 px-2 text-xs text-indigo-300">
-          Status: <span className="text-emerald-400 font-semibold">Online</span>
+        <div className="border-t border-indigo-800 pt-4 px-2 text-xs text-indigo-300 flex items-center justify-between">
+          <span>Status Server</span>
+          <span className="inline-flex items-center gap-1.5 text-emerald-400 font-bold">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            Online
+          </span>
         </div>
       </aside>
     </>

@@ -31,6 +31,7 @@ export default function SimpanPinjamPage() {
   const [masterAnggota, setMasterAnggota] = useState<Anggota[]>([])
   const [daftarPertemuan, setDaftarPertemuan] = useState<PertemuanItem[]>([])
   const [selectedPertemuanId, setSelectedPertemuanId] = useState<string>('')
+  const [userId, setUserId] = useState<string>('')
   const [userRt, setUserRt] = useState<string>('')
   const [userRole, setUserRole] = useState<string>('loading')
   const [loadingData, setLoadingData] = useState<boolean>(true)
@@ -74,7 +75,7 @@ export default function SimpanPinjamPage() {
     return parseFloat(raw) || 0
   }
 
-  // 1. Inisialisasi User RT, Role, Master Anggota & Daftar Pertemuan dari Supabase
+  // 1. Inisialisasi User & Data HANYA milik user_id yang aktif
   useEffect(() => {
     async function initData() {
       setLoadingData(true)
@@ -82,8 +83,15 @@ export default function SimpanPinjamPage() {
         data: { user },
       } = await supabase.auth.getUser()
 
-      const rt = user?.user_metadata?.rt_group || 'RT 09'
-      const role = user?.user_metadata?.role || 'simpan_pinjam'
+      if (!user) {
+        setLoadingData(false)
+        return
+      }
+
+      const uid = user.id
+      const rt = user.user_metadata?.rt_group || 'RT 09'
+      const role = user.user_metadata?.role || 'simpan_pinjam'
+      setUserId(uid)
       setUserRt(rt)
       setUserRole(role)
 
@@ -92,22 +100,22 @@ export default function SimpanPinjamPage() {
         return
       }
 
-      // Fetch Master Anggota
+      // Fetch Master Anggota terkunci user_id
       const { data: dataAnggota } = await supabase
         .from('anggota')
         .select('id, nama')
-        .eq('rt_group', rt)
+        .eq('user_id', uid)
         .order('id', { ascending: true })
 
       if (dataAnggota) {
         setMasterAnggota(dataAnggota)
       }
 
-      // Fetch Pertemuan
+      // Fetch Pertemuan terkunci user_id
       const { data: dataPertemuan } = await supabase
         .from('pertemuan')
         .select('id, tanggal')
-        .eq('rt_group', rt)
+        .eq('user_id', uid)
         .order('created_at', { ascending: false })
 
       if (dataPertemuan && dataPertemuan.length > 0) {
@@ -123,7 +131,7 @@ export default function SimpanPinjamPage() {
 
   // 2. Load Detail Transaksi Pertemuan dari Supabase
   const loadDetailPertemuan = async (pId: string) => {
-    if (!pId || pId === 'ALL') {
+    if (!pId || pId === 'ALL' || !userId) {
       setTransaksiPertemuanIni([])
       return
     }
@@ -132,6 +140,7 @@ export default function SimpanPinjamPage() {
       .from('transaksi')
       .select('*')
       .eq('id_pertemuan', pId)
+      .eq('user_id', userId)
 
     if (!error && data) {
       const mapped: TransaksiSimpanPinjam[] = data.map((t) => ({
@@ -152,10 +161,10 @@ export default function SimpanPinjamPage() {
   }
 
   useEffect(() => {
-    if (userRole === 'simpan_pinjam') {
+    if (userRole === 'simpan_pinjam' && userId) {
       loadDetailPertemuan(selectedPertemuanId)
     }
-  }, [selectedPertemuanId, userRole])
+  }, [selectedPertemuanId, userRole, userId])
 
   // Proteksi Akses Terbatas untuk Role Tabungan
   if (userRole === 'tabungan') {
@@ -235,6 +244,7 @@ export default function SimpanPinjamPage() {
           riwayat_pinjaman: updatedList,
         })
         .eq('id', existingTrx.id)
+        .eq('user_id', userId)
 
       setTransaksiPertemuanIni((prev) =>
         prev.map((item) =>
@@ -253,11 +263,13 @@ export default function SimpanPinjamPage() {
         .from('transaksi')
         .insert([
           {
+            user_id: userId,
             rt_group: userRt,
             id_pertemuan: selectedPertemuanId,
             id_anggota: selectedAnggota.id,
             nama_anggota: selectedAnggota.nama,
             status_hadir: 'Hadir',
+            tabungan_wajib: 0,
             angsuran_pokok: 0,
             bayar_jasa: 0,
             pinjaman_baru: nominalPinjamBaruRaw,
@@ -312,6 +324,7 @@ export default function SimpanPinjamPage() {
           bayar_jasa: totalJasaBaru,
         })
         .eq('id', existingTrx.id)
+        .eq('user_id', userId)
 
       setTransaksiPertemuanIni((prev) =>
         prev.map((item) =>
@@ -330,11 +343,13 @@ export default function SimpanPinjamPage() {
         .from('transaksi')
         .insert([
           {
+            user_id: userId,
             rt_group: userRt,
             id_pertemuan: selectedPertemuanId,
             id_anggota: selectedAnggota.id,
             nama_anggota: selectedAnggota.nama,
             status_hadir: 'Hadir',
+            tabungan_wajib: 0,
             angsuran_pokok: cicilanPokokBaru,
             bayar_jasa: cicilanJasaBaru,
             pinjaman_baru: 0,
@@ -365,7 +380,6 @@ export default function SimpanPinjamPage() {
     setIsModalAngsurOpen(false)
   }
 
-  // OPEN MODAL BAYAR ANGSURAN
   const handleOpenModalAngsuran = (item: Anggota) => {
     setSelectedAnggota(item)
     setInputAngsurPokokDisplay('')
@@ -373,7 +387,6 @@ export default function SimpanPinjamPage() {
     setIsModalAngsurOpen(true)
   }
 
-  // HANDLE CHANGE ANGSURAN POKOK (OTOMATIS HITUNG JASA 1% REALTIME)
   const handleAngsuranPokokChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawVal = e.target.value
     const formattedPokok = formatRupiahDisplay(rawVal)
@@ -389,7 +402,6 @@ export default function SimpanPinjamPage() {
     }
   }
 
-  // HANDLE OPEN EDIT DETAIL PINJAMAN
   const handleOpenEditPinjaman = (trx: TransaksiSimpanPinjam) => {
     setSelectedTrxForEdit(trx)
     const list =
@@ -402,7 +414,6 @@ export default function SimpanPinjamPage() {
     setIsModalEditPinjamanOpen(true)
   }
 
-  // HANDLE SIMPAN PERUBAHAN RINCIAN PINJAMAN KE SUPABASE
   const handleSaveEditPinjamanList = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedTrxForEdit || !selectedTrxForEdit.id) return
@@ -417,6 +428,7 @@ export default function SimpanPinjamPage() {
         riwayat_pinjaman: updatedRawNumbers,
       })
       .eq('id', selectedTrxForEdit.id)
+      .eq('user_id', userId)
 
     setTransaksiPertemuanIni((prev) =>
       prev.map((item) =>
@@ -434,7 +446,6 @@ export default function SimpanPinjamPage() {
     setIsModalEditPinjamanOpen(false)
   }
 
-  // FUNGSI EKSPOR KE EXCEL (.XLSX) DENGAN FORMAT RUPIAH RAPI
   const handleExportExcel = async () => {
     try {
       const XLSX = await import('xlsx')
@@ -459,7 +470,6 @@ export default function SimpanPinjamPage() {
         }
       })
 
-      // Hitung Total Akumulasi
       const totalPinjam = anggotaTampil.reduce((acc, curr) => {
         const trx = transaksiPertemuanIni.find((t) => t.idAnggota === curr.id)
         return acc + (trx?.pinjamanBaru || 0)
@@ -514,7 +524,6 @@ export default function SimpanPinjamPage() {
     }
   }
 
-  // CALCULATIONS
   const totalAngsuranPertemuanIni = transaksiPertemuanIni.reduce((acc, curr) => {
     return acc + (Number(curr.angsuranPokok) || 0) + (Number(curr.bayarJasa) || 0)
   }, 0)
@@ -552,7 +561,6 @@ export default function SimpanPinjamPage() {
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            {/* TOMBOL EXPORT EXCEL */}
             <button
               onClick={handleExportExcel}
               className="flex-1 sm:flex-none px-3.5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5"
@@ -606,7 +614,7 @@ export default function SimpanPinjamPage() {
         </div>
       </div>
 
-      {/* 1. TAMPILAN MOBILE (HANYA MUNCUL DI HP / LAYAR KECIL) */}
+      {/* 1. TAMPILAN MOBILE */}
       <div className="block md:hidden space-y-3">
         {loadingData ? (
           <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-xs text-slate-400 font-medium">
@@ -698,7 +706,7 @@ export default function SimpanPinjamPage() {
         )}
       </div>
 
-      {/* 2. TAMPILAN DESKTOP (TABEL LEBAR UNTUK LAPTOP / PC) */}
+      {/* 2. TAMPILAN DESKTOP */}
       <div className="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-600">

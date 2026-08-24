@@ -43,34 +43,46 @@ export default function DashboardLayout({
     router.push('/login')
   }
 
+  const isPemuda = userRole === 'kas_pemuda'
+
+  // Logika Filter Menu: Jika role pemuda, sembunyikan Anggota dan Pertemuan
   const navLinks = [
     { href: '/', label: 'Dashboard', show: true },
-    { href: '/anggota', label: 'Anggota', show: true },
-    { href: '/pertemuan', label: 'Pertemuan', show: true },
-    { href: '/tabungan', label: 'Tabungan', show: userRole === 'tabungan' },
+    { href: '/anggota', label: 'Anggota', show: !isPemuda },
+    { href: '/pertemuan', label: 'Pertemuan', show: !isPemuda },
+    { href: '/tabungan', label: 'Buku Tabungan', show: userRole === 'tabungan' },
     { href: '/simpan-pinjam', label: 'Simpan Pinjam', show: userRole === 'simpan_pinjam' },
+    { href: '/kas-pemuda', label: 'Buku Kas Pemuda', show: isPemuda },
   ]
 
   return (
     <div className="min-h-screen bg-slate-100/70 text-slate-800 flex flex-col w-full overflow-x-hidden">
       {/* Top Navbar */}
-      <header className="sticky top-0 z-40 bg-emerald-800 text-white shadow-md w-full">
+      <header
+        className={`sticky top-0 z-40 text-white shadow-md w-full transition-colors ${
+          isPemuda ? 'bg-indigo-900' : 'bg-emerald-800'
+        }`}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           {/* Logo & Info */}
           <Link href="/" className="flex items-center gap-2">
-            <span className="text-xl">🏛️</span>
+            <span className="text-xl">{isPemuda ? '' : '🏛️'}</span>
             <div>
               <span className="font-extrabold text-sm sm:text-base tracking-tight block leading-none">
-                Koperasi Kradenan
+                {isPemuda ? 'Kas Pemuda Kradenan' : 'Koperasi Kradenan'}
               </span>
-              <span className="text-[10px] text-emerald-200 font-semibold leading-none">
-                {userRt}
+              <span
+                className={`text-[10px] font-semibold leading-none ${
+                  isPemuda ? 'text-indigo-200' : 'text-emerald-200'
+                }`}
+              >
+                {userRt || 'FKMK'}
               </span>
             </div>
           </Link>
 
           {/* Desktop Nav Links */}
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden md:flex items-center gap-1.5">
             {navLinks
               .filter((item) => item.show)
               .map((item) => {
@@ -79,9 +91,13 @@ export default function DashboardLayout({
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
                       isActive
-                        ? 'bg-emerald-950/60 text-white shadow-inner'
+                        ? isPemuda
+                          ? 'bg-indigo-950 text-white shadow-inner'
+                          : 'bg-emerald-950/60 text-white shadow-inner'
+                        : isPemuda
+                        ? 'text-indigo-100 hover:bg-indigo-800 hover:text-white'
                         : 'text-emerald-100 hover:bg-emerald-700/60 hover:text-white'
                     }`}
                   >
@@ -95,7 +111,7 @@ export default function DashboardLayout({
           <div className="hidden md:flex items-center gap-3">
             <button
               onClick={handleLogout}
-              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-1"
+              className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-1"
             >
               <span>🚪</span> Keluar
             </button>
@@ -104,7 +120,9 @@ export default function DashboardLayout({
           {/* Mobile Hamburger Button */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden p-2 text-white hover:bg-emerald-700 rounded-xl focus:outline-none"
+            className={`md:hidden p-2 text-white rounded-xl focus:outline-none ${
+              isPemuda ? 'hover:bg-indigo-800' : 'hover:bg-emerald-700'
+            }`}
             aria-label="Toggle menu"
           >
             {isMobileMenuOpen ? (
@@ -117,7 +135,13 @@ export default function DashboardLayout({
 
         {/* Mobile Dropdown Nav Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden bg-emerald-900 border-t border-emerald-700/50 px-4 py-3 space-y-1.5">
+          <div
+            className={`md:hidden border-t px-4 py-3 space-y-1.5 ${
+              isPemuda
+                ? 'bg-indigo-950 border-indigo-800'
+                : 'bg-emerald-900 border-emerald-700/50'
+            }`}
+          >
             {navLinks
               .filter((item) => item.show)
               .map((item) => {
@@ -129,7 +153,11 @@ export default function DashboardLayout({
                     onClick={() => setIsMobileMenuOpen(false)}
                     className={`block px-3 py-2 rounded-xl text-xs font-bold transition-all ${
                       isActive
-                        ? 'bg-emerald-950 text-white'
+                        ? isPemuda
+                          ? 'bg-indigo-800 text-white'
+                          : 'bg-emerald-950 text-white'
+                        : isPemuda
+                        ? 'text-indigo-200 hover:bg-indigo-900'
                         : 'text-emerald-100 hover:bg-emerald-800'
                     }`}
                   >
@@ -137,7 +165,11 @@ export default function DashboardLayout({
                   </Link>
                 )
               })}
-            <div className="pt-2 border-t border-emerald-800">
+            <div
+              className={`pt-2 border-t ${
+                isPemuda ? 'border-indigo-800' : 'border-emerald-800'
+              }`}
+            >
               <button
                 onClick={handleLogout}
                 className="w-full py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5"

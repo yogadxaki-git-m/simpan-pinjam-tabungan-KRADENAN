@@ -10,6 +10,7 @@ interface Pertemuan {
   tanggal: string
   lokasi: string
   rt_group?: string
+  user_id?: string
 }
 
 interface TransaksiDetail {
@@ -25,6 +26,7 @@ interface TransaksiDetail {
 export default function PertemuanPage() {
   const [pertemuanList, setPertemuanList] = useState<Pertemuan[]>([])
   const [allTransaksi, setAllTransaksi] = useState<TransaksiDetail[]>([])
+  const [userId, setUserId] = useState<string>('')
   const [userRt, setUserRt] = useState<string>('')
   const [isLoaded, setIsLoaded] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -38,12 +40,12 @@ export default function PertemuanPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  // 1. Ambil Data Pertemuan & Transaksi dari Supabase berdasarkan RT
-  const fetchData = async (rt: string) => {
+  // 1. Ambil Data Pertemuan & Transaksi HANYA untuk user_id yang aktif
+  const fetchData = async (uid: string) => {
     const { data: dataPertemuan } = await supabase
       .from('pertemuan')
       .select('*')
-      .eq('rt_group', rt)
+      .eq('user_id', uid)
       .order('created_at', { ascending: false })
 
     if (dataPertemuan) {
@@ -53,7 +55,7 @@ export default function PertemuanPage() {
     const { data: dataTrx } = await supabase
       .from('transaksi')
       .select('*')
-      .eq('rt_group', rt)
+      .eq('user_id', uid)
 
     if (dataTrx) {
       setAllTransaksi(dataTrx as any)
@@ -68,17 +70,24 @@ export default function PertemuanPage() {
         data: { user },
       } = await supabase.auth.getUser()
 
-      const rt = user?.user_metadata?.rt_group || 'RT 09'
+      if (!user) {
+        setIsLoaded(true)
+        return
+      }
+
+      const uid = user.id
+      const rt = user.user_metadata?.rt_group || 'RT 09'
+      setUserId(uid)
       setUserRt(rt)
-      fetchData(rt)
+      fetchData(uid)
     }
     initUser()
   }, [])
 
-  // 2. Tambah Pertemuan Baru ke Supabase
+  // 2. Tambah Pertemuan Baru ke Supabase dengan menyertakan user_id
   const handleTambahPertemuan = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!tanggal.trim() || !lokasi.trim()) return
+    if (!tanggal.trim() || !lokasi.trim() || !userId) return
 
     const nextIndex = pertemuanList.length + 1
     const newId = `pert-0${nextIndex}-${Date.now().toString().slice(-4)}`
@@ -89,6 +98,7 @@ export default function PertemuanPage() {
       .insert([
         {
           id: newId,
+          user_id: userId,
           rt_group: userRt,
           code: newCode,
           tanggal: tanggal.trim(),
@@ -98,8 +108,7 @@ export default function PertemuanPage() {
       .select()
 
     if (error) {
-      console.error('Gagal membuat pertemuan di Supabase:', error)
-      alert(`Gagal membuat pertemuan baru di Supabase: ${error.message}`)
+      alert(`Gagal membuat pertemuan baru: ${error.message}`)
       return
     }
 
@@ -112,7 +121,7 @@ export default function PertemuanPage() {
     setIsModalOpen(false)
   }
 
-  // FUNGSI SAKTI: Kalkulasi Real-time dari data detail per pertemuan (LOGIKA ASLI)
+  // Kalkulasi Real-time dari data detail per pertemuan
   const getStatistikPertemuan = (idPertemuan: string) => {
     const details = allTransaksi.filter((t) => t.id_pertemuan === idPertemuan)
 
@@ -124,13 +133,11 @@ export default function PertemuanPage() {
       }
     }
 
-    // Ambil anggota yang sudah dicatat / diisi
     const dicatatList = details.filter(
       (d) => d.is_saved || d.status_hadir === 'Hadir'
     )
     const totalHadir = details.filter((d) => d.status_hadir === 'Hadir').length
 
-    // Hitung Total Kas Masuk (Wajib + Sukarela + Angsuran + Jasa)
     const totalKas = details.reduce(
       (acc, curr) =>
         acc +
@@ -183,7 +190,7 @@ export default function PertemuanPage() {
         </div>
       </div>
 
-      {/* Grid List Pertemuan (Card Interaktif Dynamic) */}
+      {/* Grid List Pertemuan */}
       {!isLoaded ? (
         <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center text-xs text-slate-400 font-medium">
           Memuat jadwal pertemuan...

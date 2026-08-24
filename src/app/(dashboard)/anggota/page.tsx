@@ -10,6 +10,7 @@ interface Anggota {
   telepon?: string
   alamat?: string
   rt_group?: string
+  user_id?: string
 }
 
 interface TransaksiRecord {
@@ -29,7 +30,9 @@ interface TransaksiRecord {
 export default function AnggotaPage() {
   const [daftarAnggota, setDaftarAnggota] = useState<Anggota[]>([])
   const [allTransaksi, setAllTransaksi] = useState<TransaksiRecord[]>([])
+  const [userId, setUserId] = useState<string>('')
   const [userRt, setUserRt] = useState<string>('')
+  const [userRole, setUserRole] = useState<string>('tabungan')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
 
@@ -41,12 +44,12 @@ export default function AnggotaPage() {
   const [teleponInput, setTeleponInput] = useState('')
   const [alamatInput, setAlamatInput] = useState('')
 
-  // State Modal Konfirmasi Simpel
+  // State Modal Konfirmasi
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [confirmType, setConfirmType] = useState<'simpan' | 'hapus'>('simpan')
   const [targetHapus, setTargetHapus] = useState<Anggota | null>(null)
 
-  // State Modal Detail Rincian Riwayat Transaksi Anggota
+  // State Modal Detail Rincian Mutasi Kas Anggota
   const [isModalDetailOpen, setIsModalDetailOpen] = useState(false)
   const [selectedAnggotaForDetail, setSelectedAnggotaForDetail] = useState<Anggota | null>(null)
 
@@ -55,26 +58,24 @@ export default function AnggotaPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  // 1. Fetch Anggota & Semua Transaksi dari Supabase berdasarkan RT
-  const fetchData = async (rt: string) => {
+  // 1. Fetch Anggota & Transaksi HANYA berdasarkan user_id yang aktif
+  const fetchData = async (uid: string) => {
     setLoading(true)
-    
-    // Fetch Anggota
+
     const { data: dataAnggota } = await supabase
       .from('anggota')
       .select('*')
-      .eq('rt_group', rt)
+      .eq('user_id', uid)
       .order('id', { ascending: true })
 
     if (dataAnggota) {
       setDaftarAnggota(dataAnggota)
     }
 
-    // Fetch Transaksi beserta tanggal pertemuan
     const { data: dataTrx } = await supabase
       .from('transaksi')
       .select('*, pertemuan:id_pertemuan (tanggal)')
-      .eq('rt_group', rt)
+      .eq('user_id', uid)
 
     if (dataTrx) {
       setAllTransaksi(dataTrx as any)
@@ -89,12 +90,23 @@ export default function AnggotaPage() {
         data: { user },
       } = await supabase.auth.getUser()
 
-      const rt = user?.user_metadata?.rt_group || 'RT 09'
+      if (!user) {
+        setLoading(false)
+        return
+      }
+
+      const uid = user.id
+      const rt = user.user_metadata?.rt_group || 'RT 09'
+      const role = user.user_metadata?.role || 'tabungan'
+      setUserId(uid)
       setUserRt(rt)
-      fetchData(rt)
+      setUserRole(role)
+      fetchData(uid)
     }
     initUser()
   }, [])
+
+  const isTabunganOnly = userRole === 'tabungan'
 
   // Open Modal Tambah
   const handleOpenTambah = () => {
@@ -147,6 +159,7 @@ export default function AnggotaPage() {
         .from('anggota')
         .insert([
           {
+            user_id: userId,
             rt_group: userRt,
             nama: namaInput.trim(),
             telepon: teleponInput.trim() || '-',
@@ -172,6 +185,7 @@ export default function AnggotaPage() {
           alamat: alamatInput.trim() || '-',
         })
         .eq('id', selectedId)
+        .eq('user_id', userId)
 
       if (error) {
         alert(`Gagal mengupdate data: ${error.message}`)
@@ -204,6 +218,7 @@ export default function AnggotaPage() {
       .from('anggota')
       .delete()
       .eq('id', targetHapus.id)
+      .eq('user_id', userId)
 
     if (error) {
       alert(`Gagal menghapus anggota: ${error.message}`)
@@ -261,7 +276,9 @@ export default function AnggotaPage() {
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Kelola data anggota & klik nama anggota untuk melihat riwayat mutasi tabungan dan simpan pinjam
+            {isTabunganOnly
+              ? 'Kelola data warga penabung & klik nama anggota untuk melihat riwayat setoran tabungan'
+              : 'Kelola data anggota & klik nama anggota untuk melihat riwayat mutasi tabungan dan simpan pinjam'}
           </p>
         </div>
 
@@ -290,7 +307,7 @@ export default function AnggotaPage() {
         </div>
       </div>
 
-      {/* 1. TAMPILAN MOBILE (HANYA MUNCUL DI HP / LAYAR KECIL) */}
+      {/* 1. TAMPILAN MOBILE */}
       <div className="block md:hidden space-y-3">
         {loading ? (
           <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-xs text-slate-400 font-medium">
@@ -335,12 +352,14 @@ export default function AnggotaPage() {
                     <span>Alamat:</span>
                     <span className="font-semibold text-slate-700">{item.alamat || '-'}</span>
                   </div>
-                  <div className="flex justify-between text-slate-500">
-                    <span>Sisa Hutang:</span>
-                    <span className="font-bold text-rose-600">
-                      {stat.sisaHutang > 0 ? `Rp ${stat.sisaHutang.toLocaleString('id-ID')}` : '-'}
-                    </span>
-                  </div>
+                  {!isTabunganOnly && (
+                    <div className="flex justify-between text-slate-500">
+                      <span>Sisa Hutang:</span>
+                      <span className="font-bold text-rose-600">
+                        {stat.sisaHutang > 0 ? `Rp ${stat.sisaHutang.toLocaleString('id-ID')}` : '-'}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-2 pt-1">
@@ -373,7 +392,7 @@ export default function AnggotaPage() {
         )}
       </div>
 
-      {/* 2. TAMPILAN DESKTOP (TABEL LEBAR UNTUK LAPTOP / PC) */}
+      {/* 2. TAMPILAN DESKTOP */}
       <div className="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-600">
@@ -384,7 +403,9 @@ export default function AnggotaPage() {
                 <th className="py-3 px-4">NO. TELEPON / WA</th>
                 <th className="py-3 px-4">ALAMAT</th>
                 <th className="py-3 px-4 text-right">TOTAL TABUNGAN</th>
-                <th className="py-3 px-4 text-right text-rose-600">SISA HUTANG</th>
+                {!isTabunganOnly && (
+                  <th className="py-3 px-4 text-right text-rose-600">SISA HUTANG</th>
+                )}
                 <th className="py-3 px-4 text-center w-36">AKSI</th>
               </tr>
             </thead>
@@ -392,7 +413,7 @@ export default function AnggotaPage() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-400 font-medium">
+                  <td colSpan={isTabunganOnly ? 6 : 7} className="py-8 text-center text-slate-400 font-medium">
                     Memuat data anggota dari Supabase...
                   </td>
                 </tr>
@@ -426,9 +447,11 @@ export default function AnggotaPage() {
                       <td className="py-3 px-4 text-right font-mono font-bold text-emerald-700">
                         Rp {stat.totalTabungan.toLocaleString('id-ID')}
                       </td>
-                      <td className="py-3 px-4 text-right font-mono font-black text-rose-600">
-                        {stat.sisaHutang > 0 ? `Rp ${stat.sisaHutang.toLocaleString('id-ID')}` : '-'}
-                      </td>
+                      {!isTabunganOnly && (
+                        <td className="py-3 px-4 text-right font-mono font-black text-rose-600">
+                          {stat.sisaHutang > 0 ? `Rp ${stat.sisaHutang.toLocaleString('id-ID')}` : '-'}
+                        </td>
+                      )}
                       <td className="py-3 px-4 text-center">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
@@ -459,7 +482,7 @@ export default function AnggotaPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-400 italic">
+                  <td colSpan={isTabunganOnly ? 6 : 7} className="py-8 text-center text-slate-400 italic">
                     Belum ada data anggota yang terdaftar di {userRt}.
                   </td>
                 </tr>
@@ -469,15 +492,14 @@ export default function AnggotaPage() {
         </div>
       </div>
 
-      {/* MODAL 1: RINCIAN MUTASI & BUKU KAS ANGGOTA (FITUR BARU) */}
+      {/* MODAL 1: RINCIAN MUTASI & BUKU KAS ANGGOTA */}
       {isModalDetailOpen && selectedAnggotaForDetail && detailStat && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
           <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200 w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
-            {/* Modal Header */}
             <div className="p-4 sm:p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
               <div>
                 <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300 uppercase">
-                  Buku Kas Anggota
+                  {isTabunganOnly ? 'Buku Tabungan Anggota' : 'Buku Kas Anggota'}
                 </span>
                 <h3 className="text-base sm:text-lg font-black text-slate-800 mt-1">
                   {selectedAnggotaForDetail.nama}
@@ -494,70 +516,63 @@ export default function AnggotaPage() {
               </button>
             </div>
 
-            {/* Modal Body Scrollable */}
             <div className="p-4 sm:p-6 space-y-4 overflow-y-auto">
-              {/* Ringkasan Finansial Card Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3">
-                <div className="bg-emerald-50/70 p-3 rounded-2xl border border-emerald-200">
+              {/* Kartu Ringkasan Modal */}
+              {isTabunganOnly ? (
+                /* Ringkasan Khusus Tabungan */
+                <div className="bg-emerald-50/70 p-4 rounded-2xl border border-emerald-200">
                   <span className="text-[10px] font-bold text-emerald-800 block uppercase">
-                    Total Tabungan
+                    Total Tabungan Terkumpul
                   </span>
-                  <p className="text-sm sm:text-base font-black text-emerald-700 mt-0.5">
+                  <p className="text-2xl font-black text-emerald-700 mt-0.5">
                     Rp {detailStat.totalTabungan.toLocaleString('id-ID')}
                   </p>
+                  <span className="text-[11px] text-emerald-600 block mt-0.5">
+                    Total dari {detailStat.listTrx.filter((t) => (t.tabungan_wajib || 0) > 0).length} kali setoran pertemuan
+                  </span>
                 </div>
+              ) : (
+                /* Ringkasan Simpan Pinjam */
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3">
+                  <div className="bg-emerald-50/70 p-3 rounded-2xl border border-emerald-200">
+                    <span className="text-[10px] font-bold text-emerald-800 block uppercase">
+                      Total Tabungan
+                    </span>
+                    <p className="text-sm sm:text-base font-black text-emerald-700 mt-0.5">
+                      Rp {detailStat.totalTabungan.toLocaleString('id-ID')}
+                    </p>
+                  </div>
 
-                <div className="bg-rose-50/70 p-3 rounded-2xl border border-rose-200">
-                  <span className="text-[10px] font-bold text-rose-800 block uppercase">
-                    Sisa Hutang
-                  </span>
-                  <p className="text-sm sm:text-base font-black text-rose-700 mt-0.5">
-                    Rp {detailStat.sisaHutang.toLocaleString('id-ID')}
-                  </p>
-                </div>
+                  <div className="bg-rose-50/70 p-3 rounded-2xl border border-rose-200">
+                    <span className="text-[10px] font-bold text-rose-800 block uppercase">
+                      Sisa Hutang
+                    </span>
+                    <p className="text-sm sm:text-base font-black text-rose-700 mt-0.5">
+                      Rp {detailStat.sisaHutang.toLocaleString('id-ID')}
+                    </p>
+                  </div>
 
-                <div className="bg-blue-50/70 p-3 rounded-2xl border border-blue-200 col-span-2 sm:col-span-1">
-                  <span className="text-[10px] font-bold text-blue-800 block uppercase">
-                    Status Pinjaman
-                  </span>
-                  <p className="text-xs font-black mt-1">
-                    {detailStat.totalPinjaman === 0 ? (
-                      <span className="text-slate-500 font-bold">Tidak Ada Pinjaman</span>
-                    ) : detailStat.isLunas ? (
-                      <span className="text-emerald-700 font-extrabold">✓ LUNAS</span>
-                    ) : (
-                      <span className="text-rose-700 font-extrabold">BELUM LUNAS</span>
-                    )}
-                  </p>
+                  <div className="bg-blue-50/70 p-3 rounded-2xl border border-blue-200 col-span-2 sm:col-span-1">
+                    <span className="text-[10px] font-bold text-blue-800 block uppercase">
+                      Status Pinjaman
+                    </span>
+                    <p className="text-xs font-black mt-1">
+                      {detailStat.totalPinjaman === 0 ? (
+                        <span className="text-slate-500 font-bold">Tidak Ada Pinjaman</span>
+                      ) : detailStat.isLunas ? (
+                        <span className="text-emerald-700 font-extrabold">✓ LUNAS</span>
+                      ) : (
+                        <span className="text-rose-700 font-extrabold">BELUM LUNAS</span>
+                      )}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Rincian Tambahan */}
-              <div className="grid grid-cols-3 gap-2 text-[11px] bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                <div>
-                  <span className="text-slate-400 block text-[9px] font-bold uppercase">Total Dipinjam</span>
-                  <span className="font-extrabold text-slate-800">
-                    Rp {detailStat.totalPinjaman.toLocaleString('id-ID')}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[9px] font-bold uppercase">Sudah Dicicil</span>
-                  <span className="font-extrabold text-emerald-700">
-                    Rp {detailStat.totalAngsuran.toLocaleString('id-ID')}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[9px] font-bold uppercase">Total Jasa 1%</span>
-                  <span className="font-extrabold text-amber-700">
-                    Rp {detailStat.totalJasa.toLocaleString('id-ID')}
-                  </span>
-                </div>
-              </div>
-
-              {/* Tabel Riwayat Transaksi Per Pertemuan */}
+              {/* Tabel Riwayat Transaksi Anggota */}
               <div>
                 <h4 className="text-xs font-bold text-slate-700 mb-2">
-                  Riwayat Transaksi Per Pertemuan:
+                  Riwayat Setoran Per Pertemuan:
                 </h4>
                 {detailStat.listTrx.length > 0 ? (
                   <div className="border border-slate-200 rounded-xl overflow-hidden">
@@ -566,11 +581,15 @@ export default function AnggotaPage() {
                         <thead className="bg-slate-100 text-slate-700 font-bold text-[9px] uppercase border-b border-slate-200">
                           <tr>
                             <th className="py-2 px-3">Tanggal Pertemuan</th>
-                            <th className="py-2 px-2 text-center">Hadir</th>
-                            <th className="py-2 px-3 text-right text-emerald-700">Tabungan</th>
-                            <th className="py-2 px-3 text-right text-blue-700">Angsuran</th>
-                            <th className="py-2 px-3 text-right text-amber-700">Jasa 1%</th>
-                            <th className="py-2 px-3 text-right text-rose-600">Pinjam Baru</th>
+                            <th className="py-2 px-2 text-center">Kehadiran</th>
+                            <th className="py-2 px-3 text-right text-emerald-700">Setoran Tabungan</th>
+                            {!isTabunganOnly && (
+                              <>
+                                <th className="py-2 px-3 text-right text-blue-700">Angsuran</th>
+                                <th className="py-2 px-3 text-right text-amber-700">Jasa 1%</th>
+                                <th className="py-2 px-3 text-right text-rose-600">Pinjam Baru</th>
+                              </>
+                            )}
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -587,15 +606,19 @@ export default function AnggotaPage() {
                               <td className="py-2 px-3 text-right font-mono font-bold text-emerald-700">
                                 {trx.tabungan_wajib ? `Rp ${trx.tabungan_wajib.toLocaleString('id-ID')}` : '-'}
                               </td>
-                              <td className="py-2 px-3 text-right font-mono font-bold text-blue-700">
-                                {trx.angsuran_pokok ? `Rp ${trx.angsuran_pokok.toLocaleString('id-ID')}` : '-'}
-                              </td>
-                              <td className="py-2 px-3 text-right font-mono font-bold text-amber-700">
-                                {trx.bayar_jasa ? `Rp ${trx.bayar_jasa.toLocaleString('id-ID')}` : '-'}
-                              </td>
-                              <td className="py-2 px-3 text-right font-mono font-bold text-rose-600">
-                                {trx.pinjaman_baru ? `Rp ${trx.pinjaman_baru.toLocaleString('id-ID')}` : '-'}
-                              </td>
+                              {!isTabunganOnly && (
+                                <>
+                                  <td className="py-2 px-3 text-right font-mono font-bold text-blue-700">
+                                    {trx.angsuran_pokok ? `Rp ${trx.angsuran_pokok.toLocaleString('id-ID')}` : '-'}
+                                  </td>
+                                  <td className="py-2 px-3 text-right font-mono font-bold text-amber-700">
+                                    {trx.bayar_jasa ? `Rp ${trx.bayar_jasa.toLocaleString('id-ID')}` : '-'}
+                                  </td>
+                                  <td className="py-2 px-3 text-right font-mono font-bold text-rose-600">
+                                    {trx.pinjaman_baru ? `Rp ${trx.pinjaman_baru.toLocaleString('id-ID')}` : '-'}
+                                  </td>
+                                </>
+                              )}
                             </tr>
                           ))}
                         </tbody>
@@ -604,13 +627,12 @@ export default function AnggotaPage() {
                   </div>
                 ) : (
                   <div className="p-6 bg-slate-50 rounded-xl border border-slate-200 text-center text-xs text-slate-400 italic">
-                    Belum ada riwayat transaksi pertemuan untuk anggota ini.
+                    Belum ada riwayat setoran pertemuan untuk anggota ini.
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Modal Footer */}
             <div className="p-3.5 sm:p-4 border-t border-slate-100 bg-slate-50 flex justify-end shrink-0">
               <button
                 onClick={() => setIsModalDetailOpen(false)}

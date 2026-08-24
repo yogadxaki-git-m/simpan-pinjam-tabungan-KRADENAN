@@ -10,7 +10,7 @@ export default function RegisterPage() {
   const [namaLengkap, setNamaLengkap] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole] = useState<'simpan_pinjam' | 'tabungan'>('simpan_pinjam')
+  const [role, setRole] = useState<'simpan_pinjam' | 'tabungan' | 'kas_pemuda'>('simpan_pinjam')
   const [rt, setRt] = useState<'RT 09' | 'RT 10' | 'RT 11' | 'RT 12'>('RT 09')
   const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -73,10 +73,10 @@ export default function RegisterPage() {
         <div className="text-center space-y-2">
           <div className="text-4xl mx-auto">🏛️</div>
           <h1 className="text-xl font-extrabold text-slate-900 leading-snug tracking-tight">
-            Simpan Pinjam dan Tabungan<br />Kampung Kradenan
+            Simpan Pinjam, Tabungan & Kas<br />Kampung Kradenan
           </h1>
           <p className="text-xs text-slate-500 font-medium">
-            Registrasi Akun Pengurus RT
+            Registrasi Akun Pengurus RT / Pemuda
           </p>
         </div>
 
@@ -99,7 +99,7 @@ export default function RegisterPage() {
             </label>
             <input
               type="text"
-              placeholder="Contoh: Ibu Siti Rahayu"
+              placeholder="Contoh: Mas Budi / Ibu Siti"
               value={namaLengkap}
               onChange={(e) => setNamaLengkap(e.target.value)}
               className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-emerald-600"
@@ -121,6 +121,7 @@ export default function RegisterPage() {
                 <option value="RT 10">RT 10</option>
                 <option value="RT 11">RT 11</option>
                 <option value="RT 12">RT 12</option>
+                <option value="FKMK">FKMK</option>
               </select>
             </div>
 
@@ -134,7 +135,8 @@ export default function RegisterPage() {
                 className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-emerald-800 focus:outline-none focus:border-emerald-600"
               >
                 <option value="simpan_pinjam">Simpan Pinjam</option>
-                <option value="tabungan">Tabungan</option>
+                <option value="tabungan">Tabungan Ibu-Ibu</option>
+                <option value="kas_pemuda">Kas & Tabungan Pemuda</option>
               </select>
             </div>
           </div>
