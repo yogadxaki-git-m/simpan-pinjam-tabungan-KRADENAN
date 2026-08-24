@@ -33,12 +33,13 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
 
-  // Daftar rute publik yang boleh diakses tanpa login (termasuk reset password)
+  // Daftar rute publik yang boleh diakses tanpa login
   const isAuthRoute =
     pathname.startsWith('/login') ||
     pathname.startsWith('/register') ||
     pathname.startsWith('/forgot-password') ||
     pathname.startsWith('/reset-password') ||
+    pathname.startsWith('/callback') ||
     pathname.startsWith('/auth')
 
   // 1. Jika belum login dan mencoba mengakses rute protected -> lempar ke /login
