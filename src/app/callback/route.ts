@@ -41,6 +41,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Jika gagal / token kedaluwarsa, arahkan ke login
   return NextResponse.redirect(new URL('/login?error=invalid_token', origin))
 }
