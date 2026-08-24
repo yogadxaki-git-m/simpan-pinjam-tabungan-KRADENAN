@@ -19,8 +19,8 @@ export default function ForgotPasswordPage() {
     setLoading(true)
     setMessage(null)
 
-    // Redirect URL menuju halaman buat password baru
-    const redirectUrl = `${window.location.origin}/reset-password`
+    // Arahkan ke endpoint callback auth agar token dikonversi menjadi sesi aktif
+    const redirectUrl = `${window.location.origin}/auth/callback?next=/reset-password`
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: redirectUrl,
