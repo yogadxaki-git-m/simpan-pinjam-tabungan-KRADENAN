@@ -33,8 +33,13 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
 
-  // Daftar rute publik yang boleh diakses tanpa login
-  const isAuthRoute = pathname.startsWith('/login') || pathname.startsWith('/register')
+  // Daftar rute publik yang boleh diakses tanpa login (termasuk reset password)
+  const isAuthRoute =
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/register') ||
+    pathname.startsWith('/forgot-password') ||
+    pathname.startsWith('/reset-password') ||
+    pathname.startsWith('/auth')
 
   // 1. Jika belum login dan mencoba mengakses rute protected -> lempar ke /login
   if (!user && !isAuthRoute) {
@@ -44,7 +49,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // 2. Jika sudah login dan mencoba mengakses /login atau /register -> lempar ke dashboard (/)
-  if (user && isAuthRoute) {
+  if (user && (pathname.startsWith('/login') || pathname.startsWith('/register'))) {
     const url = request.nextUrl.clone()
     url.pathname = '/'
     return NextResponse.redirect(url)
