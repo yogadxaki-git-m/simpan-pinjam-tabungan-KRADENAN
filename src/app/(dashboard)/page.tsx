@@ -197,7 +197,7 @@ export default function DashboardPage() {
                 {loading ? '...' : `Rp ${totalMasukSampah.toLocaleString('id-ID')}`}
               </p>
               <span className="text-[11px] text-slate-400 font-medium block">
-                Dari penjualan sampah & donasi
+                Dari sumber  
               </span>
             </div>
 
