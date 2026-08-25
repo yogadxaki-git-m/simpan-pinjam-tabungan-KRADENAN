@@ -191,13 +191,13 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                Total Pemasukan Sampah
+                Total Pemasukan Kas
               </span>
               <p className="text-2xl font-black text-emerald-700">
                 {loading ? '...' : `Rp ${totalMasukSampah.toLocaleString('id-ID')}`}
               </p>
               <span className="text-[11px] text-slate-400 font-medium block">
-                Dari sumber  
+                Sumber Pemasukan  
               </span>
             </div>
 
