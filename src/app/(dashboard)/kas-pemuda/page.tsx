@@ -254,7 +254,7 @@ export default function KasPemudaPage() {
       }))
 
       const ringkasan = [
-        { Keterangan: 'Total Pemasukan Sampah & Lainnya', Nominal: totalPemasukan },
+        { Keterangan: 'Total Pemasukan Lainnya', Nominal: totalPemasukan },
         { Keterangan: 'Total Pengeluaran Belanja Kas', Nominal: totalPengeluaran },
         { Keterangan: 'Sisa Saldo Kas Pemuda Saat Ini', Nominal: saldoAkhir },
       ]
@@ -575,7 +575,7 @@ export default function KasPemudaPage() {
                         : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                     }`}
                   >
-                    + Pemasukan (Sampah)
+                    + Pemasukan 
                   </button>
                   <button
                     type="button"
@@ -586,14 +586,14 @@ export default function KasPemudaPage() {
                         : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                     }`}
                   >
-                    - Pengeluaran (Belanja)
+                    - Pengeluaran 
                   </button>
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {formTipe === 'masuk' ? 'Sumber Uang / Kategori Sampah *' : 'Nama Kegiatan / Belanja *'}
+                  {formTipe === 'masuk' ? 'Sumber Uang  *' : 'Nama Kegiatan / Belanja *'}
                 </label>
                 <input
                   type="text"
